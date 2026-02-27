@@ -100,6 +100,7 @@ async function handler(ctx) {
 
     const userData: ThreadUser = threadsData[0]?.post?.user || { username: user, profile_pic_url: '' };
 
+    // デフォのコード
     // const items = threadsData
     //     .filter((item) => user === item.post.user?.username)
     //     .map((item) => ({
@@ -138,14 +139,22 @@ async function handler(ctx) {
                 .filter((item) => user === item.post.user?.username)
                 .map((item) => buildContent(item, options).description)
                 .join('<hr/>');
+
+            // エンゲージメント情報を追記
+            const likes = firstItem.post.like_count ?? 0;
+            const replies = firstItem.post.text_post_app_info?.direct_reply_count ?? 0;
+            const reposts = firstItem.post.text_post_app_info?.share_info?.repost_count ?? 0;
+            const engagement = `<p>❤️ ${likes} | 💬 ${replies} | 🔁 ${reposts}</p>`;
+
             return {
                 author: user,
                 title: buildContent(firstItem, options).title,
-                description: allDesc,
+                description: engagement + allDesc,
                 pubDate: parseDate(firstItem.post.taken_at, 'X'),
                 link: threadUrl(firstItem.post.code),
             };
         });
+
 
 
     debugJson.items = items;
@@ -164,6 +173,18 @@ interface ThreadUser {
     profile_pic_url: string;
 }
 
+// デフォのインターフェース
+// interface ThreadItem {
+//     post: {
+//         user?: ThreadUser;
+//         taken_at: number;
+//         code: string;
+//         caption?: {
+//             text: string;
+//         };
+//     };
+// }
+
 interface ThreadItem {
     post: {
         user?: ThreadUser;
@@ -171,6 +192,14 @@ interface ThreadItem {
         code: string;
         caption?: {
             text: string;
+        };
+        like_count?: number;
+        text_post_app_info?: {
+            direct_reply_count?: number;
+            share_info?: {
+                repost_count?: number;
+                quote_count?: number;
+            };
         };
     };
 }
