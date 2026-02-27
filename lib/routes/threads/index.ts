@@ -78,7 +78,7 @@ async function handler(ctx) {
     for (const el of dom.window.document.querySelectorAll('script[data-sjs]')) {
         try {
             const data = JSONPath({
-                path: '$..thread_items',
+                path: '$..thread_items[0]',
                 json: JSON.parse(el.textContent || ''),
             });
 
@@ -100,15 +100,53 @@ async function handler(ctx) {
 
     const userData: ThreadUser = threadsData[0]?.post?.user || { username: user, profile_pic_url: '' };
 
-    const items = threadsData
-        .filter((item) => user === item.post.user?.username)
-        .map((item) => ({
-            author: user,
-            title: buildContent(item, options).title,
-            description: buildContent(item, options).description,
-            pubDate: parseDate(item.post.taken_at, 'X'),
-            link: threadUrl(item.post.code),
-        }));
+    // const items = threadsData
+    //     .filter((item) => user === item.post.user?.username)
+    //     .map((item) => ({
+    //         author: user,
+    //         title: buildContent(item, options).title,
+    //         description: buildContent(item, options).description,
+    //         pubDate: parseDate(item.post.taken_at, 'X'),
+    //         link: threadUrl(item.post.code),
+    //     }));
+
+    // Fetch full thread data for each root post
+    const allThreadItems: ThreadItem[][] = [];
+    for (const el of dom.window.document.querySelectorAll('script[data-sjs]')) {
+        try {
+            const groups = JSONPath({
+                path: '$..thread_items',
+                json: JSON.parse(el.textContent || ''),
+            });
+            if (groups?.length > 0) {
+                for (const group of groups) {
+                    if (Array.isArray(group) && group.length > 0 && user === group[0]?.post?.user?.username) {
+                        allThreadItems.push(group as ThreadItem[]);
+                    }
+                }
+            }
+        } catch {
+            // Skip
+        }
+    }
+
+    const items = (allThreadItems.length > 0 ? allThreadItems : threadsData.map((item) => [item]))
+        .filter((group) => group.length > 0 && user === group[0].post.user?.username)
+        .map((group) => {
+            const firstItem = group[0];
+            const allDesc = group
+                .filter((item) => user === item.post.user?.username)
+                .map((item) => buildContent(item, options).description)
+                .join('<hr/>');
+            return {
+                author: user,
+                title: buildContent(firstItem, options).title,
+                description: allDesc,
+                pubDate: parseDate(firstItem.post.taken_at, 'X'),
+                link: threadUrl(firstItem.post.code),
+            };
+        });
+
 
     debugJson.items = items;
     ctx.set('json', debugJson);
