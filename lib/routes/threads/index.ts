@@ -78,7 +78,7 @@ async function handler(ctx) {
     for (const el of dom.window.document.querySelectorAll('script[data-sjs]')) {
         try {
             const data = JSONPath({
-                path: '$..thread_items[0]',
+                path: '$..thread_items[*]',
                 json: JSON.parse(el.textContent || ''),
             });
 
